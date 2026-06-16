@@ -83,6 +83,7 @@ else
     done
 
     distrobox create \
+        --nvidia \
         --name "${CONTAINER_NAME}" \
         --image "${CONTAINER_IMAGE}" \
         "${volume_args[@]}" \

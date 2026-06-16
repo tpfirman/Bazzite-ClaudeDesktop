@@ -6,8 +6,8 @@ set -euo pipefail
 
 # Community-maintained APT repository for Claude Desktop on Linux.
 # Source: https://github.com/aaddrick/claude-desktop-debian
-CLAUDE_APT_KEY_URL="https://aaddrick.github.io/claude-desktop-debian/KEY.gpg"
-CLAUDE_APT_REPO="deb [signed-by=/usr/share/keyrings/claude-desktop.gpg arch=amd64,arm64] https://aaddrick.github.io/claude-desktop-debian stable main"
+CLAUDE_APT_KEY_URL="https://pkg.claude-desktop-debian.dev/KEY.gpg"
+CLAUDE_APT_REPO="deb [signed-by=/usr/share/keyrings/claude-desktop.gpg arch=amd64,arm64] https://pkg.claude-desktop-debian.dev stable main"
 
 NODE_MIN_VERSION=18
 
