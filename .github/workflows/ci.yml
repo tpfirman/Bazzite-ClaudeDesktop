@@ -22,3 +22,6 @@ jobs:
 
       - name: Run dependency checks
         run: bash tests/check-deps.sh
+
+      - name: Run path and source checks
+        run: bash tests/check-paths.sh

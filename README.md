@@ -36,9 +36,9 @@ $EDITOR .env
 That's it. The script will:
 
 1. Create an Ubuntu 24.04 Distrobox container named `claude-desktop` with your configured directories mounted
-2. Install Claude Desktop via the [community APT repository](https://github.com/aaddrick/claude-desktop-debian) and its dependencies
+2. Install Claude Desktop via [Anthropic's official APT repository](https://code.claude.com/docs/en/desktop-linux) and its dependencies
 3. Install Node.js LTS and the MCP filesystem server (`@modelcontextprotocol/server-filesystem`)
-4. Write `~/.config/claude/claude_desktop_config.json` — creating it on first run, updating only the `filesystem` entry on subsequent runs
+4. Write `~/.config/Claude/claude_desktop_config.json` — creating it on first run, updating only the `filesystem` entry on subsequent runs
 5. Export the app to your host desktop (app grid + `.desktop` launcher)
 6. Patch the launcher for Wayland
 7. Install the git pre-commit hook (shell + JSON linting)
@@ -90,7 +90,7 @@ MOUNT_DIRS="/mnt/git /home/user/projects /mnt/data"
 
 ## MCP Configuration
 
-The live config lives at `~/.config/claude/claude_desktop_config.json` — outside the repo, so it can never be accidentally committed.
+The live config lives at `~/.config/Claude/claude_desktop_config.json` — outside the repo, so it can never be accidentally committed.
 
 ### How setup.sh manages the config
 
@@ -109,7 +109,7 @@ The starting point for the config is resolved in this order:
 
 ### Adding your own MCP servers
 
-Edit `~/.config/claude/claude_desktop_config.json` directly and restart Claude Desktop. `setup.sh` will leave your additions untouched on future runs:
+Edit `~/.config/Claude/claude_desktop_config.json` directly and restart Claude Desktop. `setup.sh` will leave your additions untouched on future runs:
 
 ```json
 {
@@ -197,10 +197,11 @@ distrobox enter --name claude-desktop -- ls /mnt/git
 
 ### Claude Desktop exits silently with no window
 
-Electron dependency missing — check the launcher log:
+Electron dependency missing — launch from a terminal to see Electron's output, and check for missing libraries:
 
 ```bash
-cat ~/.cache/claude-desktop-debian/launcher.log
+distrobox enter --name claude-desktop -- claude-desktop
+distrobox enter --name claude-desktop -- bash -c 'ldd /usr/lib/claude-desktop/claude-desktop | grep "not found"'
 ```
 
 A common cause is a missing shared library (e.g. `libasound.so.2: cannot open shared object file`). Re-running `./setup.sh` installs the full dependency list including `libasound2t64`. If you created the container before this fix was added, the quickest path is to re-run the install script directly:
@@ -218,7 +219,7 @@ distrobox enter --name claude-desktop -- sudo apt-get install -y libasound2t64
 **Wayland issue** — check that `ELECTRON_OZONE_PLATFORM_HINT=auto` is in the `.desktop` file:
 
 ```bash
-grep ELECTRON ~/.local/share/applications/claude.desktop
+grep ELECTRON ~/.local/share/applications/claude-desktop-com.anthropic.Claude.desktop
 ```
 
 If it's missing, re-run `./setup.sh` to re-apply the patch, or force X11 as a workaround:
@@ -239,7 +240,7 @@ Common causes:
 |---|---|
 | `npx: command not found` | Run `./setup.sh` again — Node.js may not have installed correctly |
 | `/mnt/git` permission denied | Check that your user owns the mount point |
-| Server listed but shows error | Restart Claude Desktop; check `~/.config/claude/claude_desktop_config.json` for syntax errors |
+| Server listed but shows error | Restart Claude Desktop; check `~/.config/Claude/claude_desktop_config.json` for syntax errors |
 
 To test the MCP server manually inside the container:
 
@@ -252,7 +253,7 @@ distrobox enter --name claude-desktop -- npx -y @modelcontextprotocol/server-fil
 ### App not showing in app grid after export
 
 ```bash
-distrobox enter --name claude-desktop -- distrobox-export --app claude
+distrobox enter --name claude-desktop -- distrobox-export --app /usr/share/applications/com.anthropic.Claude.desktop
 ```
 
 Then refresh your app grid (log out/in or `killall gnome-shell` on GNOME).

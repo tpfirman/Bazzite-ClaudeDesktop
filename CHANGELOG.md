@@ -6,6 +6,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Changed
+- Install Claude Desktop from Anthropic's official APT repo (`downloads.claude.ai`); the retired community repo is removed automatically on upgrade
+
+### Fixed
+- MCP config is written to `~/.config/Claude` (where Claude Desktop reads it), migrating any config from the old lowercase path
+- Desktop export targets `com.anthropic.Claude.desktop` by full path, and stale launchers exported by the old fuzzy match (including a duplicate Claude Code URL handler) are removed
+- Install script reports the `claude-desktop` binary instead of the Claude Code `claude` CLI
+
+### Added
+- `tests/check-paths.sh` — static checks for config path, APT source, and desktop export, run in CI
+
 ## [0.1.0] - 2026-04-19
 
 ### Added
