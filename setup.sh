@@ -108,7 +108,7 @@ if distrobox enter --name "${CONTAINER_NAME}" -- bash "${INSTALL_SCRIPT_TMP}"; t
     info "In-container install complete."
 else
     warn "Install script exited with an error — Claude Desktop may not be installed."
-    warn "Common cause: the .deb download URL has changed. Check CLAUDE_DEB_URL in:"
+    warn "Common cause: the APT repository has moved. Check CLAUDE_APT_REPO in:"
     warn "  ${SCRIPT_DIR}/scripts/install-in-container.sh"
     warn "Continuing with the rest of setup (MCP config, desktop integration)..."
 fi
@@ -121,7 +121,7 @@ rm -f "${INSTALL_SCRIPT_TMP}"
 #    Every other MCP server in the config is user-managed and is never touched.
 #
 #    Resolution order for the starting config:
-#      1. Existing installed config  (~/.config/claude/claude_desktop_config.json)
+#      1. Existing installed config  (~/.config/Claude/claude_desktop_config.json)
 #      2. Local repo template        (config/claude_desktop_config.json, git-ignored)
 #      3. Empty object               (fresh install, no template)
 #
@@ -129,11 +129,19 @@ rm -f "${INSTALL_SCRIPT_TMP}"
 # ---------------------------------------------------------------------------
 header "=== MCP configuration ==="
 
-MCP_CONFIG_DIR="${HOME}/.config/claude"
+MCP_CONFIG_DIR="${HOME}/.config/Claude"
 MCP_CONFIG_FILE="${MCP_CONFIG_DIR}/claude_desktop_config.json"
 LOCAL_MCP_CONFIG="${SCRIPT_DIR}/config/claude_desktop_config.json"
 MCP_CONFIG_TMP="${MCP_CONFIG_FILE}.tmp"
 mkdir -p "${MCP_CONFIG_DIR}"
+
+# Earlier versions wrote to ~/.config/claude (lowercase), which Claude Desktop
+# never reads. Carry that config over once so user-added servers aren't lost.
+LEGACY_MCP_CONFIG_FILE="${HOME}/.config/claude/claude_desktop_config.json"
+if [[ ! -f "${MCP_CONFIG_FILE}" && -f "${LEGACY_MCP_CONFIG_FILE}" ]]; then
+    cp "${LEGACY_MCP_CONFIG_FILE}" "${MCP_CONFIG_FILE}"
+    info "Migrated MCP config from ${LEGACY_MCP_CONFIG_FILE}"
+fi
 
 python3 -c "
 import json, sys, os
@@ -175,10 +183,23 @@ info "MCP config written to ${MCP_CONFIG_FILE} (filesystem entry updated; all ot
 # ---------------------------------------------------------------------------
 header "=== Desktop integration ==="
 
-info "Exporting Claude Desktop app to host..."
-distrobox enter --name "${CONTAINER_NAME}" -- distrobox-export --app claude 2>/dev/null || true
+APPS_DIR="${HOME}/.local/share/applications"
 
-DESKTOP_FILE="${HOME}/.local/share/applications/claude.desktop"
+# Earlier versions ran `distrobox-export --app claude`, which fuzzy-matched
+# unrelated launchers (e.g. the host's Claude Code URL handler). Remove them.
+for stale in "${CONTAINER_NAME}-claude-code-url-handler.desktop" "${CONTAINER_NAME}-claude-desktop.desktop"; do
+    if [[ -f "${APPS_DIR}/${stale}" ]] && grep -q "distrobox-enter  *-n ${CONTAINER_NAME} " "${APPS_DIR}/${stale}"; then
+        rm -f "${APPS_DIR}/${stale}"
+        info "Removed stale export ${APPS_DIR}/${stale}"
+    fi
+done
+
+# Export by full path: a bare name is fuzzy-matched against every desktop file.
+info "Exporting Claude Desktop app to host..."
+distrobox enter --name "${CONTAINER_NAME}" -- \
+    distrobox-export --app /usr/share/applications/com.anthropic.Claude.desktop 2>/dev/null || true
+
+DESKTOP_FILE="${APPS_DIR}/${CONTAINER_NAME}-com.anthropic.Claude.desktop"
 if [[ -f "${DESKTOP_FILE}" ]]; then
     # Patch all Exec= lines to prepend Wayland env var (idempotent guard included)
     if ! grep -q "ELECTRON_OZONE_PLATFORM_HINT" "${DESKTOP_FILE}"; then
@@ -190,7 +211,7 @@ if [[ -f "${DESKTOP_FILE}" ]]; then
 else
     warn "Could not find exported .desktop file at ${DESKTOP_FILE}"
     warn "You can export manually by running inside the container:"
-    warn "  distrobox enter --name ${CONTAINER_NAME} -- distrobox-export --app claude"
+    warn "  distrobox enter --name ${CONTAINER_NAME} -- distrobox-export --app /usr/share/applications/com.anthropic.Claude.desktop"
 fi
 
 # ---------------------------------------------------------------------------
@@ -206,7 +227,7 @@ bash "${SCRIPT_DIR}/hooks/install-hooks.sh"
 header "=== Done ==="
 echo ""
 echo "  Container:      ${CONTAINER_NAME}"
-echo "  App launcher:   ${DESKTOP_FILE:-~/.local/share/applications/claude.desktop}"
+echo "  App launcher:   ${DESKTOP_FILE}"
 echo "  MCP config:     ${MCP_CONFIG_FILE}"
 echo "  Mounted dirs:   ${MOUNT_DIRS_ARRAY[*]}"
 echo "  Git hooks:      pre-commit (shellcheck + JSON lint)"
